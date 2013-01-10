@@ -2,8 +2,6 @@ import socket
 import struct
 import os
 
-
-# there are plenty of else's :)
 def trial(attr_type, data, *values):
     if len(values):
         data = struct.pack(data, *values)
@@ -11,14 +9,14 @@ def trial(attr_type, data, *values):
     else:
         return data
 
-# this first while loop happens 3 times for every data --> hmm?
 def test(t):
     a = {}
     while 3 not in a.keys():
         while len(t):
             atl, aty = struct.unpack('HH', t[:4])
+            print len(t[4:atl]), atl
             a[aty] = trial(aty, t[4:atl])
-            atl = ((atl + 4 - 1) & ~3)
+            atl = ((atl + 3) & ~3)
             t = t[atl:]
         t = a[4]
     return a[3]
@@ -35,13 +33,13 @@ for i in ps:
     back = struct.pack('I', i) 
     back_hdr = struct.pack('HH', len(back) + 4, 1)
     length = len(back)
-    pad = ((length + 4 - 1) & ~3) - length
+    pad = ((length + 3) & ~3) - length
     back = back_hdr + back + b'\0' * pad
     content.append(front)
     content.append(back) 
     load = b''.join(content)
     length = len(load)
-    hdr = struct.pack('IHHII', length + 4*4, 23, 1, 1, pid)
+    hdr = struct.pack('IHHII', length + 16, 23, 1, 1, pid)
     c.send(hdr+load)
     t, (x,y) = c.recvfrom(16384)
     t = test(t[20:])
