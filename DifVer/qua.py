@@ -2,16 +2,6 @@ import socket
 import struct
 import os
 
-def test(t):
-    a = {}
-    while 3 not in a.keys():
-        while len(t):
-            atl, aty = struct.unpack('HH', t[:4])
-            a[aty] = t[4:atl]
-            t = t[atl:]
-        t = a[4]
-    return a[3]
-
 ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
 conn = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, 16)
 conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
@@ -27,5 +17,12 @@ for i in ps:
     hdr = struct.pack('IHHII', len(load) + 16, 23, 1, 1, pid)
     conn.send(hdr+load)
     t, (x,y) = conn.recvfrom(16384)
-    t = test(t[20:])
+    t = t[20:]
+    a = {}
+    while 3 not in a.keys():
+        while len(t):
+            atl, aty = struct.unpack('HH', t[:4])
+            a[aty] = t[4:atl]
+            t = t[atl:]
+        t = a[aty]
     print 'Process %d: --> Read: %d --> Write: %d' % (i, struct.unpack('Q', t[248:256])[0], struct.unpack('Q', t[256:264])[0])
