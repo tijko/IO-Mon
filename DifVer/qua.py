@@ -2,24 +2,26 @@ import socket
 import struct
 import os
 
-def parse_attributes(data):
-    attrs = {}
-    while len(data):
-        attr_len, attr_type = struct.unpack("HH", data[:4])
-        attrs[attr_type] = Attr(attr_type, data[4:attr_len])
-        attr_len = ((attr_len + 4 - 1) & ~3 )
-        data = data[attr_len:]
-    return attrs
 
-class Attr:
-    def __init__(self, attr_type, data, *values):
-        self.type = attr_type
-        if len(values):
-            self.data = struct.pack(data, *values)
-        else:
-            self.data = data
-    def nested(self):
-        return parse_attributes(self.data)
+# there are plenty of else's :)
+def trial(attr_type, data, *values):
+    if len(values):
+        data = struct.pack(data, *values)
+        return data
+    else:
+        return data
+
+# this first while loop happens 3 times for every data --> hmm?
+def test(t):
+    a = {}
+    while 3 not in a.keys():
+        while len(t):
+            atl, aty = struct.unpack('HH', t[:4])
+            a[aty] = trial(aty, t[4:atl])
+            atl = ((atl + 4 - 1) & ~3)
+            t = t[atl:]
+        t = a[4]
+    return a[3]
 
 ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
 c = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, 16)
@@ -42,6 +44,6 @@ for i in ps:
     hdr = struct.pack('IHHII', length + 4*4, 23, 1, 1, pid)
     c.send(hdr+load)
     t, (x,y) = c.recvfrom(16384)
-    t = parse_attributes(t[20:])
-    n = t[4].nested()[3].data
+    t = test(t[20:])
+    n = t[:]
     print 'Process %d: --> Read: %d --> Write: %d' % (i, struct.unpack('Q', n[248:256])[0], struct.unpack('Q', n[256:264])[0])
