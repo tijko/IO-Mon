@@ -2,19 +2,12 @@ import socket
 import struct
 import os
 
-def trial(attr_type, data, *values):
-    if len(values):
-        data = struct.pack(data, *values)
-        return data
-    else:
-        return data
-
 def test(t):
     a = {}
     while 3 not in a.keys():
         while len(t):
             atl, aty = struct.unpack('HH', t[:4])
-            a[aty] = trial(aty, t[4:atl])
+            a[aty] = t[4:atl]
             t = t[atl:]
         t = a[4]
     return a[3]
