@@ -1,118 +1,127 @@
-#!/usr/bin/env python
-
-import optparse
 import os
-import threading
-import daemon
-import psutil 
-
-import glib
 import dbus
+import struct
+import socket
+import daemon
+import psutil # maybe not...
 import gobject
 import dbus.service
-from dbus.mainloop.glib import threads_init
 from dbus.mainloop.glib import DBusGMainLoop
 
-import iotop
-import iotop.data
-from iotop import ui
-from iotop.ui import find_uids
-from iotop.data import Stats
-from iotop.data import ProcessInfo
-from iotop.data import ProcessList
-from iotop.data import TaskStatsNetlink
 
+"""
+Time to make this latest version with netlink sockets and
 
-def optpar():
-    parser = optparse.OptionParser()
-    parser.add_option('-a', '--accumulated', action='store_true', 
-                        dest='accumulated', default=True)
-    parser.add_option('-o', '--only', action='store_true', 
-                        dest='only', default=False)
-    parser.add_option('-b', '--batch', action='store_true', 
-                        dest='batch', default=True)
-    parser.add_option('-k', '--kilobytes', action='store_true',
-                        dest='kilobytes', default=False)
-    parser.add_option('-p', '--pids', type='int', dest='pids',
-                        action='append', metavar='PID')
-    parser.add_option('-n', '--iter', type='int', 
-                        dest='iterations', metavar='NUM')
-    parser.add_option('-t', '--time', action='store_true', dest='time')
-    parser.add_option('-q', '--quiet', action='count', dest='quiet', default=0)
-    parser.add_option('-d', '--delay', type='float', dest='delay_seconds',
-                        metavar='SEC', default=1)
-    options, args = parser.parse_args()
-    return options
+the methods polling /sys/block/dev/... for device i/o
 
-options = optpar()
-options.processes = None
-options.uids = []
-options.pids = []
+"""
 
+class IoMonitor(dbus.service.Object):
 
-class WarningIndicator(dbus.service.Object):
+    def __init__(self):
+        name = dbus.service.BusName('org.iomonitor', dbus.SystemBus(mainloop=DBusGMainLoop()))
+        dbus.service.Object.__init__(self, name, '/org/iomonitor')
+        self.conn = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, 16)
+        self.conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+        self.conn.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
+        self.conn.bind((0,0))
+        self.pid, self.grp = self.conn.getsockname()
 
-    def __init__(self, options):
-        name = dbus.service.BusName('org.ProcessIndicator', dbus.SessionBus(mainloop=DBusGMainLoop()))
-        dbus.service.Object.__init__(self, name, '/org/ProcessIndicator')
-        self.processes = [int(i) for i in os.listdir('/proc') if i.isdigit()]
-        self.options = options
-        self.tsk_stats = TaskStatsNetlink(options)
-        self.proc_lst = ProcessList(self.tsk_stats, options)
-        self.total = self.proc_lst.refresh_processes()
-        self.total_read, self.total_write = self.total
-        self.info = ui.IOTopUI(None, self.proc_lst, options).get_data()
-        self.info = [i.split() for i in self.info]
+    def grab_data(self):
+        aps = []
+        ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
+        for pid in ps:
+            front = struct.pack('HH', 1, 0)
+            back = struct.pack('I', pid)
+            back_hdr = struct.pack('HH', len(back) + 4, 1)
+            back = back_hdr + back
+            load = b''.join(front+back)
+            hdr = struct.pack('IHHII', len(load) + 16, 23, 1, 1, self.pid)
+            self.conn.send(hdr+load)
+            t, (x, y) = self.conn.recvfrom(16384)
+            t = t[20:]
+            a = {}
+            while 3 not in a.keys():
+                while len(t):
+                    atl, aty = struct.unpack('HH', t[:4])
+                    a[aty] = t[4:atl]
+                    t = t[atl:]
+                t = a[aty]
+            try:
+                aps.append(['PID:', pid, 'READ:', struct.unpack('Q', t[248:256])[0],
+                                 'WRITE:', struct.unpack('Q', t[256:264])[0]])
+            except struct.error:
+                pass
+        return aps
 
-    @dbus.service.method('org.ProcessIndicator', out_signature='s')
-    def stat_object(self): 
-        return str(ui.IOTopUI(None, self.proc_lst, self.options)) 
+    @dbus.service.method('org.iomonitor', out_signature='as')
+    def process_list(self):
+        pidnamelst = []
+        prclst = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+        for pid in prclst:
+            if os.path.isfile('/proc/%s/stat' % pid):
+                with open('/proc/%s/stat' % pid, 'r+') as f:
+                    name = f.readline()
+                f.close()
+                name = [j for j in name.split(' ') if '(' in j]
+                pidnamelst.append(name[0][1:-1])
+        return pidnamelst
 
-    @dbus.service.method('org.ProcessIndicator', out_signature='as')
-    def process_objs(self):
-        return [str(ProcessInfo(i)) for i in self.processes]
+    @dbus.service.method('org.iomonitor', out_signature='aas')
+    def allprocess_stats(self):
+        aps = self.grab_data()
+        return aps
 
-    @dbus.service.method('org.ProcessIndicator', out_signature='aas')
-    def allproc_stats(self):
-        return [i[:3] + [''.join(i[n:n+2]) for n in xrange(3,11,2)] + i[11:] for i in self.info]
-
-    @dbus.service.method('org.ProcessIndicator', in_signature='i', out_signature='as')
+    @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
     def process_stats(self, pid):
-        return ui.format_stats(options, ProcessInfo(pid), 1)
-#        self.info = ui.IOTopUI(None, self.proc_lst, options).get_data()
-#        self.info = [i.split() for i in self.info]
-#        for p in self.info:
-#            if int(p[0]) == pid:
-#                return p[:3] + [''.join(p[n:n+2]) for n in xrange(3,11,2)] + p[11:]
+        aps = self.grab_data()
+        for i in aps:
+            if pid == str(i[1]):
+                return i
+        return ['No i/o']
 
-    @dbus.service.method('org.ProcessIndicator', in_signature='i', out_signature='s')
-    def proc_swap(self, pid):
-        for p in self.info:
-            if int(p[0]) == pid:
-                return p[7] + p[8] 
+    @dbus.service.method('org.iomonitor', out_signature='as')
+    def process_swap(self, pid):
+        # check if this best place to monitor?
+        with open('/proc/swaps') as f:
+            data = f.readlines()
+        f.close()
+        if len(data) > 1:
+            return data
+        return ['No swap']
 
-    @dbus.service.method('org.ProcessIndicator', out_signature='s')
+    @dbus.service.method('org.iomonitor', out_signature='s')
     def memory(self):
+        # work out psutil
         return str(psutil.avail_phymem())
 
-    @dbus.service.method('org.ProcessIndicator', out_signature='as')
-    def disklst(self):
-        return [str(i) for i in psutil.disk_partitions()] 
+    @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
+    def diskstats(self, disk):
+        with open('/sys/block/sda/%s/stat' % disk, 'r') as f:
+            data = f.readlines()
+        f.close()
+        data = [i for i in data[0].split(' ') if len(i) > 0]
+        return ['read ' + data[0], 'write ' + data[4]]
 
-    @dbus.service.method('org.ProcessIndicator', in_signature='s', out_signature='as')
-    def diskinfo(self, diskid):
-        return [str(i) for i in psutil.disk_partitions(diskid)]
+    @dbus.service.method('org.iomonitor', out_signature='as')
+    def disklist(self):
+        # /sys/block/dev/...just sda/hda -- or all partitions??
+        dl = os.listdir('/sys/block')
+        return dl
 
+    @dbus.service.method('org.iomonitor', out_signature='as')
+    def deviceinfo(self):
+        with open('/proc/scsi/scsi', 'r') as f:
+            devinfo = f.readlines()
+        f.close()
+        return devinfo
 
 if __name__ == '__main__':
     with daemon.DaemonContext():
-        wi = WarningIndicator
-        wi(options)
-        gobject.threads_init()
-        dbus.mainloop.glib.threads_init()
-        d_main_loop = gobject.MainLoop()
-        d_loop_thread = threading.Thread(name='glib_mainloop', target=d_main_loop.run)
-        d_loop_thread.start()
-        uithread = threading.Thread(target=ui.run_iotop(options))
-        uithread.start()                
-#        gobject.MainLoop().run()
+        iom = IoMonitor
+        iom()
+        gobject.MainLoop().run()
+
+# this will need a .conf file in /etc/dbus/system.d/...
+# and also for startup execution an entry in --> sudo crontab -e @reboot
+
