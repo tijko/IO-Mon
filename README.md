@@ -1,4 +1,4 @@
 PMon
 ====
 
-Process monitoring with IOTop through dbus
+Process monitoring with netlink sockets and made available as a dbus service.
