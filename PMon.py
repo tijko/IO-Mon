@@ -1,7 +1,6 @@
 import os
 import dbus
 import sys
-import time
 import struct
 import socket
 import psutil # maybe not...
