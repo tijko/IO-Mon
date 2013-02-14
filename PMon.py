@@ -1,8 +1,9 @@
 import os
 import dbus
+import sys
+import time
 import struct
 import socket
-import daemon
 import psutil # maybe not...
 import gobject
 import dbus.service
@@ -20,7 +21,7 @@ class IoMonitor(dbus.service.Object):
 
     def __init__(self):
         name = dbus.service.BusName('org.iomonitor', dbus.SystemBus(mainloop=DBusGMainLoop()))
-        dbus.service.Object.__init__(self, name, '/org/iomonitor')
+        super(IoMonitor, self).__init__(name, '/org/iomonitor')
         self.conn = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, 16)
         self.conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
         self.conn.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
@@ -117,10 +118,24 @@ class IoMonitor(dbus.service.Object):
         return devinfo
 
 if __name__ == '__main__':
-    with daemon.DaemonContext():
-        iom = IoMonitor
-        iom()
-        gobject.MainLoop().run()
+    try:
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0)
+    except OSError:
+        sys.exit(0)
+    os.chdir('/')
+    os.setsid()
+    os.umask(0)
+    try:
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0)
+    except OSError:
+        sys.exit(1)
+    iom = IoMonitor
+    iom()
+    gobject.MainLoop().run()
 
 # this will need a .conf file in /etc/dbus/system.d/...
 # and also for startup execution an entry in --> sudo crontab -e @reboot
