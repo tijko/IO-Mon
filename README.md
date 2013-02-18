@@ -1,4 +1,4 @@
-PMon
+IO/Mon
 ====
 
-Process monitoring with netlink sockets and made available as a dbus service.
+I/O monitoring with netlink sockets and made available as a dbus service.
