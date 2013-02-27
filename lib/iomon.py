@@ -1,6 +1,7 @@
 import os
 import struct
 import socket
+import collections
 
 import psutil # maybe not..
 
@@ -27,7 +28,7 @@ class IoMonitor(dbus.service.Object):
         self.pid, self.grp = self.conn.getsockname()
 
     def netlink_data(self):
-        aps = []
+        aps = collections.defaultdict(int)
         ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
         for pid in ps:
             front = struct.pack('HH', 1, 0)
@@ -47,8 +48,9 @@ class IoMonitor(dbus.service.Object):
                     t = t[atl:]
                 t = a[aty]
             try:
-                aps.append(['PID:', pid, 'READ:', struct.unpack('Q', t[248:256])[0],
-                                 'WRITE:', struct.unpack('Q', t[256:264])[0]])
+                aps['PID: ' + str(pid) + ' READ: ' + 
+                    str(struct.unpack('Q', t[248:256])[0]) + 
+                    ' WRITE: ' + str(struct.unpack('Q', t[256:264])[0])] += 1  
             except struct.error:
                 pass
         return aps
@@ -66,7 +68,7 @@ class IoMonitor(dbus.service.Object):
                 pidnamelst.append(name[0][1:-1])
         return pidnamelst
 
-    @dbus.service.method('org.iomonitor', out_signature='aas')
+    @dbus.service.method('org.iomonitor', out_signature='as')
     def all_proc_stats(self):
         aps = self.netlink_data()
         return aps
