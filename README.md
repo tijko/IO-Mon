@@ -14,3 +14,15 @@ For psutil you can either,
 Or grab a copy from source @http://code.google.com/p/psutil/.
 
 
+
+DBus/Session
+====
+
+Since IO-Mon is a service on the system-bus you will need to put the
+
+org.iomonitor.conf file in your dbus/system.d/ directory.
+
+
+
+
+
