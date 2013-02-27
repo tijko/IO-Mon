@@ -27,7 +27,7 @@ class IoMonitor(dbus.service.Object):
         self.conn.bind((0,0))
         self.pid, self.grp = self.conn.getsockname()
 
-    def grab_data(self):
+    def netlink_data(self):
         aps = []
         ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
         for pid in ps:
@@ -68,12 +68,12 @@ class IoMonitor(dbus.service.Object):
         return pidnamelst
 
     @dbus.service.method('org.iomonitor', out_signature='aas')
-    def allprocess_stats(self):
+    def all_proc_stats(self):
         aps = self.grab_data()
         return aps
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
-    def process_stats(self, pid):
+    def single_proc_stats(self, pid):
         aps = self.grab_data()
         for i in aps:
             if pid == str(i[1]):
