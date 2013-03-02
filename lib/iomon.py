@@ -73,16 +73,17 @@ class IoMonitor(dbus.service.Object):
         aps = self.netlink_data()
         return aps
 
-    @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
+    @dbus.service.method('org.iomonitor', in_signature='s', out_signature='s')
     def single_proc_stats(self, pid):
         aps = self.netlink_data()
         for i in aps:
-            if pid == str(i[1]):
+            chk = i.split(' ')
+            if pid == chk[1]:
                 return i
         return ['No i/o']
 
     @dbus.service.method('org.iomonitor', out_signature='as')
-    def process_swap(self, pid):
+    def process_swap(self):
         # check if this best place to monitor?
         with open('/proc/swaps') as f:
             data = f.readlines()
