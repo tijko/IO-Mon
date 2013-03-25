@@ -13,7 +13,8 @@ For psutil you can either,
 Or grab a copy from source @http://code.google.com/p/psutil/.
 
 Since IO-Mon is a service on the system-bus you will need to put the
-org.iomonitor.conf file in your /etc/dbus-1/system.d/ directory.
+org.iomonitor.conf file in your /etc/dbus-1/system.d/ directory to
+provide the proper security credentials.
 
 
 
