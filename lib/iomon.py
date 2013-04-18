@@ -3,17 +3,10 @@ import struct
 import socket
 import collections
 
-import psutil # maybe not..
-
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 
-"""
-
-Make the methods polling /sys/block/dev/... for device i/o
-
-"""
 
 
 class IoMonitor(dbus.service.Object):
@@ -84,7 +77,6 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def process_swap(self):
-        # check if this best place to monitor?
         with open('/proc/swaps') as f:
             data = f.readlines()
         f.close()
@@ -94,8 +86,14 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='s')
     def memory(self):
-        # work out psutil
-        return str(psutil.avail_phymem())
+        data_size = {'kB':1024, 'mB':2048, 'gB':4096}
+        with open('/proc/meminfo') as f:
+            memory = f.read()
+        memory = memory.split()[1:6]
+        total_mem = int(memory[0]) * data_size[memory[1]]
+        free_mem = int(memory[3]) * data_size[memory[4]]
+        used_mem = total_mem - free_mem 
+        return "Used Memory %s | Free Memory %s" % (used_mem, free_mem)
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
     def diskstats(self, disk):
@@ -107,7 +105,6 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def disklist(self):
-        # /sys/block/dev/...just sda/hda -- or all partitions??
         dl = os.listdir('/sys/block')
         return dl
     @dbus.service.method('org.iomonitor', out_signature='as')
