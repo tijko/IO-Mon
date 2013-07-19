@@ -50,16 +50,12 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def process_list(self):
-        pidnamelst = []
-        prclst = [pid for pid in os.listdir('/proc') if pid.isdigit()]
-        for pid in prclst:
-            if os.path.isfile('/proc/%s/stat' % pid):
-                with open('/proc/%s/stat' % pid, 'r+') as f:
-                    name = f.readline()
-                f.close()
-                name = [j for j in name.split(' ') if '(' in j]
-                pidnamelst.append(name[0][1:-1])
-        return pidnamelst
+        pidnames = list() 
+        for pid in os.listdir('/proc'):
+            if pid.isdigit() and os.path.isfile('/proc/%s/comm' % pid):
+                with open('/proc/%s/comm' % pid, 'r') as f:
+                    pidnames.append(f.readline().strip('\n'))
+        return pidnames
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def all_proc_stats(self):
@@ -79,7 +75,6 @@ class IoMonitor(dbus.service.Object):
     def process_swap(self):
         with open('/proc/swaps') as f:
             data = f.readlines()
-        f.close()
         if len(data) > 1:
             return data
         return ['No swap']
@@ -99,7 +94,6 @@ class IoMonitor(dbus.service.Object):
     def diskstats(self, disk):
         with open('/sys/block/sda/%s/stat' % disk, 'r') as f:
             data = f.readlines()
-        f.close()
         data = [i for i in data[0].split(' ') if len(i) > 0]
         return ['read ' + data[0], 'write ' + data[4]]
 
@@ -107,10 +101,10 @@ class IoMonitor(dbus.service.Object):
     def disklist(self):
         dl = os.listdir('/sys/block')
         return dl
+
     @dbus.service.method('org.iomonitor', out_signature='as')
     def deviceinfo(self):
         with open('/proc/scsi/scsi', 'r') as f:
             devinfo = f.readlines()
-        f.close()
         return devinfo
 
