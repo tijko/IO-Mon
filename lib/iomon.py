@@ -49,34 +49,45 @@ class IoMonitor(dbus.service.Object):
                                                      FAMILY_SEQ)])
         gen_id = struct.pack('%dsB' % len('TASKSTATS'), 'TASKSTATS', 0)
         pad = self.build_padding(gen_id)
-        genhdr = struct.pack('HH', len(gen_id) + 4, 1)
+        genhdr = struct.pack('HH', len(gen_id) + 4, 2)
         payload += b''.join([genhdr + gen_id + b'\0' * pad])
         hdr = self.build_ntlnk_hdr(NETLINK_GENERIC, NLM_F_REQUEST, FAMILY_SEQ + 1,
                                    self.pid, payload) 
         self.conn.send(hdr + payload)
         msg = self.conn.recvfrom(16384)[0]
+        taskstat_cmd = self.parse_msg(msg[20:])[1]
+        taskstat_cmd = struct.unpack('H', taskstat_cmd)[0]
+        return taskstat_cmd
 
-    def netlink_msg_parse(self):
+    def parse_msg(self, msg):
+        msg_segments = {}
+        while len(msg):
+            seg_len, seg_type = struct.unpack('HH', msg[:4])
+            msg_segments[seg_type] = msg[4:seg_len]
+            seg_len = ((seg_len + 4 - 1) & ~3 )
+            msg = msg[seg_len:]
+        return msg_segments
+
+    def gentlnk_taskstat(self):
         aps = collections.defaultdict(int)
         ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
         ntlnk_family = self.get_family_name()
         for pid in ps:
-            hdr = self.build_ntlnk_hdr()
-            payload = self.build_ntlnk_payload()
-            self.conn.send(hdr+load)
-            t, (x, y) = self.conn.recvfrom(16384)
-            t = t[20:]
-            a = {}
-            while 3 not in a.keys():
-                while len(t):  
-                    atl, aty = struct.unpack('HH', t[:4])
-                    a[aty] = t[4:atl]
-                    t = t[atl:]
-                t = a[aty]
+            payload = b''.join([self.build_ntlnk_payload(TASKSTATS_CMD_GET, 0)])
+            gen_id = struct.pack('I', pid)
+            pad = self.build_padding(gen_id)
+            genhdr = struct.pack('HH', len(gen_id) + 4, 1)
+            payload += b''.join([genhdr + gen_id + b'\0' * pad])
+            hdr = self.build_ntlnk_hdr(ntlnk_family, NLM_F_REQUEST, FAMILY_SEQ + 2,
+                                       self.pid, payload)
+            self.conn.send(hdr + payload)
+            msg = self.conn.recvfrom(16384)[0]
+            segments = self.parse_msg(msg[20:])
+            msg = self.parse_msg(segments[4])[3]
             try:
                 aps['PID: ' + str(pid) + ' READ: ' + 
-                    str(struct.unpack('Q', t[248:256])[0]) + 
-                    ' WRITE: ' + str(struct.unpack('Q', t[256:264])[0])] += 1  
+                    str(struct.unpack('Q', msg[248:256])[0]) + 
+                    ' WRITE: ' + str(struct.unpack('Q', msg[256:264])[0])] += 1  
             except struct.error:
                 pass
         return aps
