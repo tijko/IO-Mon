@@ -8,6 +8,18 @@ import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 
 
+NLMSG_ERROR = 2
+NLMSG_VERSION= 0x10
+CTRL_CMD_GETFAMILY = 3
+NLM_F_REQUEST = 1
+CTRL_ATTR_FAMILY_ID = 1
+TASKSTATS_CMD_GET = 1
+TASKSTATS_CMD_ATTR_PID = 1
+TASKSTATS_TYPE_AGGR_PID = 4
+TASKSTATS_TYPE_STATS = 3
+FAMILY_SEQ = 0
+NETLINK_GENERIC = 16
+
 
 class IoMonitor(dbus.service.Object):
 
@@ -20,22 +32,43 @@ class IoMonitor(dbus.service.Object):
         self.conn.bind((0,0))
         self.pid, self.grp = self.conn.getsockname()
 
-    def netlink_data(self):
+    def build_ntlnk_payload(self, nl_type, flags):
+        return struct.pack('BBxx', nl_type, flags)
+
+    def build_ntlnk_hdr(self, version, flags, seq, pid, payload):
+        length = len(payload)
+        hdr = struct.pack('IHHII', length + 4*4, version, flags, seq, self.pid)
+        return hdr
+      
+    def build_padding(self, load):
+        pad = ((len(load) + 4 - 1) & ~3) - len(load)
+        return pad
+
+    def get_family_name(self):
+        payload = b''.join([self.build_ntlnk_payload(CTRL_CMD_GETFAMILY, 
+                                                     FAMILY_SEQ)])
+        gen_id = struct.pack('%dsB' % len('TASKSTATS'), 'TASKSTATS', 0)
+        pad = self.build_padding(gen_id)
+        genhdr = struct.pack('HH', len(gen_id) + 4, 1)
+        payload += b''.join([genhdr + gen_id + b'\0' * pad])
+        hdr = self.build_ntlnk_hdr(NETLINK_GENERIC, NLM_F_REQUEST, FAMILY_SEQ + 1,
+                                   self.pid, payload) 
+        self.conn.send(hdr + payload)
+        msg = self.conn.recvfrom(16384)[0]
+
+    def netlink_msg_parse(self):
         aps = collections.defaultdict(int)
         ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
+        ntlnk_family = self.get_family_name()
         for pid in ps:
-            front = struct.pack('HH', 1, 0)
-            back = struct.pack('I', pid)
-            back_hdr = struct.pack('HH', len(back) + 4, 1)
-            back = back_hdr + back
-            load = b''.join(front+back)
-            hdr = struct.pack('IHHII', len(load) + 16, 23, 1, 1, self.pid)
+            hdr = self.build_ntlnk_hdr()
+            payload = self.build_ntlnk_payload()
             self.conn.send(hdr+load)
             t, (x, y) = self.conn.recvfrom(16384)
             t = t[20:]
             a = {}
             while 3 not in a.keys():
-                while len(t):
+                while len(t):  
                     atl, aty = struct.unpack('HH', t[:4])
                     a[aty] = t[4:atl]
                     t = t[atl:]
@@ -48,6 +81,8 @@ class IoMonitor(dbus.service.Object):
                 pass
         return aps
 
+
+
     @dbus.service.method('org.iomonitor', out_signature='as')
     def process_list(self):
         pidnames = list() 
@@ -59,7 +94,7 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def all_proc_stats(self):
-        aps = self.netlink_data()
+        aps = self.netlink_msg_parse()
         return aps
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='s')
