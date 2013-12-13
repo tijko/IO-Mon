@@ -61,7 +61,7 @@ class IoMonitor(dbus.service.Object):
 
     def parse_msg(self, msg):
         msg_segments = {}
-        while len(msg):
+        while msg:
             seg_len, seg_type = struct.unpack('HH', msg[:4])
             msg_segments[seg_type] = msg[4:seg_len]
             seg_len = ((seg_len + 4 - 1) & ~3 )
