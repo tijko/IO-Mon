@@ -1,7 +1,6 @@
 import os
 import struct
 import socket
-import collections
 
 import dbus
 import dbus.service
@@ -69,7 +68,7 @@ class IoMonitor(dbus.service.Object):
         return msg_segments
 
     def gentlnk_taskstat(self):
-        aps = collections.defaultdict(int)
+        aps = dict()
         ps = [int(i) for i in os.listdir('/proc') if i.isdigit()]
         ntlnk_family = self.get_family_name()
         for pid in ps:
@@ -77,7 +76,7 @@ class IoMonitor(dbus.service.Object):
             gen_id = struct.pack('I', pid)
             pad = self.build_padding(gen_id)
             genhdr = struct.pack('HH', len(gen_id) + 4, 1)
-            payload += b''.join([genhdr + gen_id + b'\0' * pad])
+            payload += b''.join([genhdr, gen_id, b'\0' * pad])
             hdr = self.build_ntlnk_hdr(ntlnk_family, NLM_F_REQUEST, FAMILY_SEQ + 2,
                                        self.pid, payload)
             self.conn.send(hdr + payload)
@@ -85,14 +84,12 @@ class IoMonitor(dbus.service.Object):
             segments = self.parse_msg(msg[20:])
             msg = self.parse_msg(segments[4])[3]
             try:
-                aps['PID: ' + str(pid) + ' READ: ' + 
-                    str(struct.unpack('Q', msg[248:256])[0]) + 
-                    ' WRITE: ' + str(struct.unpack('Q', msg[256:264])[0])] += 1  
+                aps[str(pid)] = ('PID: %d READ: %d WRITE %d' % 
+                                (pid, struct.unpack('Q', msg[248:256])[0], 
+                                 struct.unpack('Q', msg[256:264])[0]))
             except struct.error:
-                pass
+                aps[str(pid)] = 'ERROR'
         return aps
-
-
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def process_list(self):
@@ -106,16 +103,16 @@ class IoMonitor(dbus.service.Object):
     @dbus.service.method('org.iomonitor', out_signature='as')
     def all_proc_stats(self):
         aps = self.gentlnk_taskstat()
-        return aps
+        return {v:k for k,v in aps.items()}
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='s')
-    def single_proc_stats(self, pid):
+    def single_proc_stats(self, pid=None):
+        if pid is None:
+            return 'Error: must a process number'
         aps = self.gentlnk_taskstat()
-        for i in aps:
-            chk = i.split(' ')
-            if pid == chk[1]:
-                return i
-        return ['No i/o']
+        if aps.get(pid):
+            return aps[pid]
+        return 'No i/o for %s' % pid
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def process_swap(self):
