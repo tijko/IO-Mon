@@ -50,7 +50,7 @@ class IoMonitor(dbus.service.Object):
         gen_id = struct.pack('%dsB' % len('TASKSTATS'), 'TASKSTATS', 0)
         pad = self.build_padding(gen_id)
         genhdr = struct.pack('HH', len(gen_id) + 4, 2)
-        payload += b''.join([genhdr + gen_id + b'\0' * pad])
+        payload += b''.join([genhdr, gen_id, b'\0' * pad])
         hdr = self.build_ntlnk_hdr(NETLINK_GENERIC, NLM_F_REQUEST, FAMILY_SEQ + 1,
                                    self.pid, payload) 
         self.conn.send(hdr + payload)
@@ -105,12 +105,12 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def all_proc_stats(self):
-        aps = self.netlink_msg_parse()
+        aps = self.gentlnk_taskstat()
         return aps
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='s')
     def single_proc_stats(self, pid):
-        aps = self.netlink_data()
+        aps = self.gentlnk_taskstat()
         for i in aps:
             chk = i.split(' ')
             if pid == chk[1]:
@@ -137,7 +137,9 @@ class IoMonitor(dbus.service.Object):
         return "Used Memory %s | Free Memory %s" % (used_mem, free_mem)
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
-    def diskstats(self, disk):
+    def diskstats(self, disk=None):
+        if disk is None:
+            return ['Provide a device']
         with open('/sys/block/sda/%s/stat' % disk, 'r') as f:
             data = f.readlines()
         data = [i for i in data[0].split(' ') if len(i) > 0]
