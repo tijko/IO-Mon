@@ -137,10 +137,10 @@ class IoMonitor(dbus.service.Object):
     def diskstats(self, disk=None):
         if disk is None:
             return ['Provide a device']
-        with open('/sys/block/sda/%s/stat' % disk, 'r') as f:
-            data = f.readlines()
-        data = [i for i in data[0].split(' ') if len(i) > 0]
-        return ['read ' + data[0], 'write ' + data[4]]
+        with open('/sys/block/sda/%s/stat' % disk) as f:
+            stats= f.read()
+        disk_stats = disk_stats.split()
+        return ['read %s write %s' % (disk_stats[0], data[4])]
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def disklist(self):
