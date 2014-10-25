@@ -3,36 +3,34 @@
 import os
 import sys
 
-import gobject
-
 from lib.iomon import *
+from gi.repository import GObject
 
-def daemonize():
+
+def fork_process():
     try:
         pid = os.fork()
         if pid > 0:
             sys.exit(0)
     except OSError:
         sys.exit(1)
+    return
+
+def daemonize():
+    fork_process()
 
     os.chdir('/')
     os.setsid()
     os.umask(0)
 
-    try:
-        pid = os.fork()
-        if pid > 0:
-            sys.exit(0)
-    except OSError:
-        sys.exit(1)
+    fork_process()
 
     return
 
 def main():
     daemonize()
-    iom = IoMonitor
-    iom()
-    gobject.MainLoop().run()
+    IoMonitor()
+    GObject.MainLoop().run()
 
 
 if __name__ == '__main__':
