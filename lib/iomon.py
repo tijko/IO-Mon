@@ -8,7 +8,7 @@ import socket
 import dbus
 import dbus.service
 
-from taskstats import taskstats
+from taskstats.taskstats import Taskstats
 from dbus.mainloop.glib import DBusGMainLoop
 
 
