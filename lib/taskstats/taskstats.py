@@ -72,10 +72,11 @@ class Taskstats(object):
         self.taskstats_fields = [task[0] for task in taskstat_struct]
         self.fmt = ''.join([task[1] for task in taskstat_struct])
 
-    def get_task(self, task):
+    def get_task(self, task, pid):
         task_msg_payload = Genlmsg(TASKSTATS_CMD_GET, Nlattr(
-                                   TASKSTATS_CMD_ATTR_PID, self.pid))
-        self.genlctrl.send(Nlmsg(self.genlctrl.fam_id, task_msg_payload).pack())
+                                   TASKSTATS_CMD_ATTR_PID, pid))
+        self.genlctrl.send(Nlmsg(self.genlctrl.fam_id, self.pid, 
+                                         task_msg_payload).pack())
         task_response = self.genlctrl.recv()
         parse_response(self, task_response[NLA_HDRLEN:])
         taskstats_raw = self.attrs[TASKSTATS_TYPE_STATS]
@@ -83,10 +84,10 @@ class Taskstats(object):
                              struct.unpack(self.fmt, taskstats_raw)))
         return taskstats.get(task)
                             
-    def read(self):
-        taskstats_read = self.get_task('read_bytes')
+    def read(self, pid):
+        taskstats_read = self.get_task('read_bytes', pid)
         return taskstats_read
 
-    def write(self):
-        taskstats_write = self.get_task('write_bytes')
+    def write(self, pid):
+        taskstats_write = self.get_task('write_bytes', pid)
         return taskstats_write
