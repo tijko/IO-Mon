@@ -20,34 +20,33 @@ class IoMonitor(dbus.service.Object):
         super(IoMonitor, self).__init__(name, '/org/iomonitor')
         self.pid = os.getpid()
         self.tasks = Taskstats(self.pid)
+        self.is_pid = lambda file_name: file_name.isdigit()
 
-    @dbus.service.method('org.iomonitor', out_signature='as')
+    @dbus.service.method('org.iomonitor', out_signature='a{si}')
     def process_list(self):
-        pidnames = list() 
-        for pid in os.listdir('/proc'):
-            if pid.isdigit() and os.path.isfile('/proc/%s/comm' % pid):
-                with open('/proc/%s/comm' % pid, 'r') as f:
-                    pidnames.append(f.readline().strip('\n'))
-        return pidnames
+        processes = dict() 
+        for pid in map(int, filter(self.is_pid, os.listdir('/proc'))):
+            with open('/proc/%s/comm' % pid) as f:
+                processes[f.readline().strip('\n')] = pid
+        return processes
 
-    @dbus.service.method('org.iomonitor', out_signature='as')
+    @dbus.service.method('org.iomonitor', out_signature='aa{sa{si}}')
     def all_proc_stats(self):
-        #XXX set up netlink connection for read and write stats
-        #    run through a pid - list and map the names to the
-        #    read/write
-        write = self.tasks.write()
-        read = self.tasks.read()
-        return {v:k for k,v in all_proc_stat.items()}
+        processes = self.process_list()
+        all_stats = list()
+        for process in processes:
+            write = self.tasks.write(processes[process])
+            read = self.tasks.read(processes[process])
+            all_stats.append({process:{'read':read, 'write':write}})
+        return all_stats 
 
-    @dbus.service.method('org.iomonitor', in_signature='s', out_signature='s')
+    @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ia{si}}')
     def single_proc_stats(self, pid=None):
-        #XXX set up netlink connection for read and write stats
         if pid is None:
-            return 'Error: must a process number'
-        all_proc_stat = self.gentlnk_taskstat()
-        if all_proc_stat.get(pid):
-            return all_proc_stat[pid]
-        return 'No i/o for %s' % pid
+            return 'Error: must provide a process number'
+        write = self.tasks.write(pid)
+        read = self.tasks.read(pid)
+        return {pid:{'read':read, 'write':write}}
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def process_swap(self):
