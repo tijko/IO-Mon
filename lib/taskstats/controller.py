@@ -113,11 +113,12 @@ class Controller(Connection):
         self.genlhdr = Genlmsg(CTRL_CMD_GETFAMILY, Nlattr(CTRL_ATTR_FAMILY_NAME,
                                                                 self.genl_name))
         self.attrs = dict()
+        self.pid = os.getpid()
         self.fam_id = self.get_family_id
 
     @property
     def get_family_id(self):
-        nlmsg = Nlmsg(GENL_ID_CTRL, self.genlhdr).pack()
+        nlmsg = Nlmsg(GENL_ID_CTRL, self.pid, self.genlhdr).pack()
         self.send(nlmsg)
         family_id_reply = self.recv()
         parse_response(self, family_id_reply)
