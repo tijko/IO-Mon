@@ -59,10 +59,10 @@ class Nlmsg(dict):
     @param genlmsg :: a Genlmsg object which will be the message payload
     @type  genlmsg :: Genlmsg Class Object.
     '''
-    def __init__(self, nlmsg_type, genlmsg):
+    def __init__(self, nlmsg_type, pid, genlmsg):
         super(Nlmsg, self).__init__()
         self.fields = ['nl_len', 'nl_type', 'nl_flags', 'nl_seq', 'nl_pid']
-        self['nl_pid'] = os.getpid()
+        self['nl_pid'] = pid
         self['nl_flags'] = NLM_F_REQUEST
         self['nl_len'] = NLMSG_HDRLEN
         self['nl_type'] = nlmsg_type
