@@ -83,6 +83,11 @@ class Taskstats(object):
         taskstats = dict(zip(self.taskstats_fields,
                              struct.unpack(self.fmt, taskstats_raw)))
         return taskstats.get(task)
+
+    def process_name(self, pid):
+        raw_taskstats_name = self.get_task('ac_comm', pid)
+        taskstats_name = raw_taskstats_name.strip('\x00')
+        return taskstats_name
                             
     def read(self, pid):
         taskstats_read = self.get_task('read_bytes', pid)
