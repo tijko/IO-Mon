@@ -96,3 +96,8 @@ class Taskstats(object):
     def write(self, pid):
         taskstats_write = self.get_task('write_bytes', pid)
         return taskstats_write
+
+    def swap(self, pid):
+        process_swap = self.get_task('swapin_count', pid)
+        return process_swap
+
