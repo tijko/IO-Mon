@@ -23,6 +23,7 @@ class IoMonitor(dbus.service.Object):
         self.is_pid = lambda file_name: file_name.isdigit()
         self.procs = lambda: map(int, filter(self.is_pid, os.listdir('/proc')))
 
+    @property
     @dbus.service.method('org.iomonitor', out_signature='a{si}')
     def process_list(self):
         processes = dict() 
@@ -32,30 +33,35 @@ class IoMonitor(dbus.service.Object):
         return processes
 
     @dbus.service.method('org.iomonitor', out_signature='aa{sa{si}}')
-    def all_proc_stats(self):
-        processes = self.process_list()
+    def all_proc_io(self):
         all_stats = list()
-        for process in processes:
+        for process in self.process_list:
             write = self.tasks.write(processes[process])
             read = self.tasks.read(processes[process])
             all_stats.append({process:{'read':read, 'write':write}})
         return all_stats 
 
     @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ia{si}}')
-    def single_proc_stats(self, pid=None):
+    def single_proc_io(self, pid=None):
         if pid is None:
             return 'Error: must provide a process number'
         write = self.tasks.write(pid)
         read = self.tasks.read(pid)
         return {pid:{'read':read, 'write':write}}
 
-    @dbus.service.method('org.iomonitor', out_signature='as')
-    def process_swap(self):
-        with open('/proc/swaps') as f:
-            data = f.readlines()
-        if len(data) > 1:
-            return data
-        return ['No swap']
+    @dbus.service.method('org.iomonitor', out_signature='a{si}')
+    def all_proc_swap(self):
+        all_swap = dict()
+        for process, pid in self.process_list.items():
+            all_swap[process] = self.tasks.swap(pid)
+        return all_swap
+        
+    @dbus.service.method('org.iomonitor', in_signature='i', out_signature'a{ii}')
+    def single_proc_swap(self, pid=None):
+        if pid is None:
+            return 'Error: must provide a process number'
+        pid_swap = self.tasks.swap(pid)
+        return {pid:pid_swap}
 
     @dbus.service.method('org.iomonitor', out_signature='s')
     def memory(self):
