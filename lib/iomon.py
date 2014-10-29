@@ -21,13 +21,14 @@ class IoMonitor(dbus.service.Object):
         self.pid = os.getpid()
         self.tasks = Taskstats(self.pid)
         self.is_pid = lambda file_name: file_name.isdigit()
+        self.procs = lambda: map(int, filter(self.is_pid, os.listdir('/proc')))
 
     @dbus.service.method('org.iomonitor', out_signature='a{si}')
     def process_list(self):
         processes = dict() 
-        for pid in map(int, filter(self.is_pid, os.listdir('/proc'))):
-            with open('/proc/%s/comm' % pid) as f:
-                processes[f.readline().strip('\n')] = pid
+        for pid in self.procs():
+            name = self.tasks.process_name(pid)
+            processes[name] = pid
         return processes
 
     @dbus.service.method('org.iomonitor', out_signature='aa{sa{si}}')
