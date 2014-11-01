@@ -56,23 +56,20 @@ class IoMonitor(dbus.service.Object):
             all_swap[process] = self.tasks.swap(pid)
         return all_swap
         
-    @dbus.service.method('org.iomonitor', in_signature='i', out_signature'a{ii}')
+    @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ii}')
     def single_proc_swap(self, pid=None):
         if pid is None:
             return 'Error: must provide a process number'
         pid_swap = self.tasks.swap(pid)
         return {pid:pid_swap}
 
-    @dbus.service.method('org.iomonitor', out_signature='s')
+    @dbus.service.method('org.iomonitor', out_signature='a{si}')
     def memory(self):
-        data_size = {'kB':1024, 'mB':2048, 'gB':4096}
         with open('/proc/meminfo') as f:
             memory = f.read()
-        memory = memory.split()[1:6]
-        total_mem = int(memory[0]) * data_size[memory[1]]
-        free_mem = int(memory[3]) * data_size[memory[4]]
-        used_mem = total_mem - free_mem 
-        return "Used Memory %s | Free Memory %s" % (used_mem, free_mem)
+        memory = memory.split()
+        total, free = map(int, [memory[1], memory[4]])
+        return {'total_mem':total, 'free_mem':free, 'used_mem':total - free}
 
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
     def diskstats(self, disk=None):
