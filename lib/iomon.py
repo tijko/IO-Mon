@@ -36,8 +36,8 @@ class IoMonitor(dbus.service.Object):
     def all_proc_io(self):
         all_stats = list()
         for process in self.process_list:
-            write = self.tasks.write(processes[process])
-            read = self.tasks.read(processes[process])
+            write = self.tasks.write(self.process_list[process])
+            read = self.tasks.read(self.process_list[process])
             all_stats.append({process:{'read':read, 'write':write}})
         return all_stats 
 
