@@ -147,7 +147,7 @@ def calc_alignment(data):
     return ((data + NLMSG_ALIGNTO - 1) & ~(NLMSG_ALIGNTO - 1))
 
 def parse_response(nlobj, reply):
-    nl_len, nl_type = struct.unpack('IHHII', reply[:NLMSG_HDRLEN])[:2]
+    _, _, _, nl_len, nl_type = struct.unpack('IHHII', reply[:NLMSG_HDRLEN])
     nlattrs = reply[NLMSG_HDRLEN + GENL_HDRLEN:]
     while (nlattrs):
         nla_len, nla_type = map(int, struct.unpack('HH', nlattrs[:NLA_HDRLEN]))
