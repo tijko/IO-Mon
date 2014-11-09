@@ -15,7 +15,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 class IoMonitor(dbus.service.Object):
 
     def __init__(self):
-        name = dbus.service.BusName('org.iomonitor', dbus.SystemBus(
+        name = dbus.service.BusName('org.iomonitor', dbus.SessionBus(
                                                      mainloop=DBusGMainLoop()))
         super(IoMonitor, self).__init__(name, '/org/iomonitor')
         self.pid = os.getpid()
