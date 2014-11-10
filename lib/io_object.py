@@ -44,8 +44,8 @@ class IoMonitor(dbus.service.Object):
     @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ia{si}}')
     def single_proc_io(self, pid=None):
         if pid is None:
-            raise dbus.DBusException('Invalid arg of type <NoneType> :: 
-                                               must be of type <int>')
+            raise dbus.DBusException('''Invalid arg of type <NoneType> ::  
+                                                 must be of type <int>''')
         write = self.tasks.write(pid)
         read = self.tasks.read(pid)
         return {pid:{'read':read, 'write':write}}
@@ -60,8 +60,8 @@ class IoMonitor(dbus.service.Object):
     @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ii}')
     def single_proc_swap(self, pid=None):
         if pid is None:
-            raise dbus.DBusException('Invalid arg of type <NoneType> :: 
-                                               must be of type <int>')
+            raise dbus.DBusException('''Invalid arg of type <NoneType> :: 
+                                                 must be of type <int>''')
         pid_swap = self.tasks.swap(pid)
         return {pid:pid_swap}
 
@@ -76,8 +76,8 @@ class IoMonitor(dbus.service.Object):
     @dbus.service.method('org.iomonitor', in_signature='s', out_signature='as')
     def diskstats(self, disk=None):
         if disk is None:
-            raise dbus.DBusException('Invalid arg of type <NoneType> :: 
-                                               must be of type <str>')
+            raise dbus.DBusException('''Invalid arg of type <NoneType> :: 
+                                                 must be of type <str>''')
         with open('/sys/block/sda/%s/stat' % disk) as f:
             stats= f.read()
         disk_stats = disk_stats.split()
