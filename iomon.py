@@ -7,31 +7,34 @@ from gi.repository import GObject
 from lib.io_object import IoMonitor
 
 
-def fork_process():
-    try:
-        pid = os.fork()
-        if pid > 0:
-            sys.exit(0)
-    except OSError:
-        sys.exit(1)
-    return
+class InitIoMon(object):
 
-def daemonize():
-    fork_process()
+    def __init__(self, iomonitor_obj):
+        self.iomonitor_obj = iomonitor_obj
+    
+    def run(self):
+        self.daemonize()
+        GObject.MainLoop().run()
+    
+    def _fork(self):
+        try:
+            pid = os.fork()
+            if pid > 0:
+                sys.exit(0)
+        except OSError:
+            sys.exit(1)
 
-    os.chdir('/')
-    os.setsid()
-    os.umask(0)
+    def daemonize(self):
+        self.iomonitor_obj()
+        self._fork()
+        os.chdir('/')
+        os.setsid()
+        os.umask(0)
+        self._fork()
+        return
 
-    fork_process()
-
-    return
-
-def main():
-    daemonize()
-    IoMonitor()
-    GObject.MainLoop().run()
 
 
 if __name__ == '__main__':
-    main()
+    iomon = InitIoMon(IoMonitor)
+    iomon.run()
