@@ -3,8 +3,8 @@
 import os
 import sys
 
-from lib.iomon import *
 from gi.repository import GObject
+from lib.io_object import IoMonitor
 
 
 def fork_process():
