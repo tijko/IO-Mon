@@ -8,13 +8,26 @@ from lib.io_object import IoMonitor
 
 
 class InitIoMon(object):
+    '''
+    Initializing class for IO-Mon that creates the main instance of IoMonitor
+    (the dbus object to export).  Inside the IoMonitor instance the 
+    DBusGMainLoop is called to allow GObject mainloop integration.
 
+    After daemonizing the process, lastly the GObject mainloop is then 
+    initialized and run.
+
+    @param iomonitor_obj :: the main class representing the dbus object.
+    @type  iomonitor_obj :: type <class 'dbus.service.InterfaceType'>.
+    '''
     def __init__(self, iomonitor_obj):
+        super(InitIoMon, self).__init__()
         self.iomonitor_obj = iomonitor_obj
-    
+        self.gobj_loop = GObject.MainLoop()
+ 
     def run(self):
+        self.iomonitor_obj()
         self.daemonize()
-        GObject.MainLoop().run()
+        self.gobj_loop.run()
     
     def _fork(self):
         try:
@@ -25,7 +38,6 @@ class InitIoMon(object):
             sys.exit(1)
 
     def daemonize(self):
-        self.iomonitor_obj()
         self._fork()
         os.chdir('/')
         os.setsid()
