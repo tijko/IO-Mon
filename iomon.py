@@ -13,8 +13,8 @@ class InitIoMon(object):
     (the dbus object to export).  Inside the IoMonitor instance the 
     DBusGMainLoop is called to allow GObject mainloop integration.
 
-    After daemonizing the process, lastly the GObject mainloop is then 
-    initialized and run.
+    After daemonizing the process, the GObject mainloop is then initialized and 
+    run.
 
     @param iomonitor_obj :: the main class representing the dbus object.
     @type  iomonitor_obj :: type <class 'dbus.service.InterfaceType'>.
