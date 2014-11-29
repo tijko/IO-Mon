@@ -15,7 +15,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 class IoMonitor(dbus.service.Object):
 
     def __init__(self):
-        name = dbus.service.BusName('org.iomonitor', dbus.SessionBus(
+        name = dbus.service.BusName('org.iomonitor', dbus.SystemBus(
                                                      mainloop=DBusGMainLoop()))
         super(IoMonitor, self).__init__(name, '/org/iomonitor')
         self.pid = os.getpid()
@@ -24,7 +24,6 @@ class IoMonitor(dbus.service.Object):
         self.procs = lambda: map(int, filter(self.is_pid, os.listdir('/proc')))
 
     @property
-    @dbus.service.method('org.iomonitor', out_signature='a{si}')
     def process_list(self):
         processes = dict() 
         for pid in self.procs():
