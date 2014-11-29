@@ -78,9 +78,9 @@ class IoMonitor(dbus.service.Object):
             raise dbus.DBusException('''Invalid arg of type <NoneType> :: 
                                                  must be of type <str>''')
         with open('/sys/block/sda/%s/stat' % disk) as f:
-            stats= f.read()
-        disk_stats = disk_stats.split()
-        return ['read %s write %s' % (disk_stats[0], data[4])]
+            raw_diskstats= f.read()
+        disk_stats = raw_diskstats.split()
+        return ['read %s write %s' % (disk_stats[0], disk_stats[4])]
 
     @dbus.service.method('org.iomonitor', out_signature='as')
     def disklist(self):
