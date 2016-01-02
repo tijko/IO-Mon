@@ -25,11 +25,8 @@ class IoMonitor(dbus.service.Object):
 
     @property
     def process_list(self):
-        processes = dict() 
-        for pid in self.procs():
-            name = self.tasks.process_name(pid)
-            processes[name] = pid
-        return processes
+        pids = self.procs()
+        return dict(zip(map(self.tasks.process_name, pids), pids))
 
     @dbus.service.method('org.iomonitor', out_signature='aa{sa{si}}')
     def all_proc_io(self):
@@ -51,10 +48,7 @@ class IoMonitor(dbus.service.Object):
 
     @dbus.service.method('org.iomonitor', out_signature='a{si}')
     def all_proc_swap(self):
-        all_swap = dict()
-        for process, pid in self.process_list.items():
-            all_swap[process] = self.tasks.swap(pid)
-        return all_swap
+        return {p:self.tasks.swap(pid) for p, pid in self.process_list.items()}
         
     @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ii}')
     def single_proc_swap(self, pid=None):
