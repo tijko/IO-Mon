@@ -28,7 +28,7 @@ class IoMonitor(dbus.service.Object):
         pids = self.procs()
         return dict(zip(map(self.tasks.process_name, pids), pids))
 
-    @dbus.service.method('org.iomonitor', out_signature='aa{sa{si}}')
+    @dbus.service.method('org.iomonitor', out_signature='aa{sa{st}}')
     def all_proc_io(self):
         all_stats = list()
         for process in self.process_list:
@@ -37,7 +37,7 @@ class IoMonitor(dbus.service.Object):
             all_stats.append({process:{'read':read, 'write':write}})
         return all_stats 
 
-    @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ia{si}}')
+    @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ia{st}}')
     def single_proc_io(self, pid=None):
         if pid is None:
             raise dbus.DBusException('''Invalid arg of type <NoneType> ::  
@@ -46,11 +46,11 @@ class IoMonitor(dbus.service.Object):
         read = self.tasks.read(pid)
         return {pid:{'read':read, 'write':write}}
 
-    @dbus.service.method('org.iomonitor', out_signature='a{si}')
+    @dbus.service.method('org.iomonitor', out_signature='a{st}')
     def all_proc_swap(self):
         return {p:self.tasks.swap(pid) for p, pid in self.process_list.items()}
         
-    @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{ii}')
+    @dbus.service.method('org.iomonitor', in_signature='i', out_signature='a{it}')
     def single_proc_swap(self, pid=None):
         if pid is None:
             raise dbus.DBusException('''Invalid arg of type <NoneType> :: 
